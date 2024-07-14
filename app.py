@@ -1,7 +1,7 @@
 from fastapi import FastAPI,Request
 import googlemaps.client
 from pydantic import BaseModel
-from pandas import * 
+from pandas import read_csv
 import math
 from dotenv import load_dotenv
 import os 
@@ -51,6 +51,25 @@ def calculateDist(userLat,userLon,userSpecifiedDistance) -> dict:
 
         if (distance<=userSpecifiedDistance):
             #print(row["ROUTE_NO"],row["STOP_NAME"])
+            stops[i]={"Route_no":row["ROUTE_NO"],"Stop_name":row["STOP_NAME"],"Latitude":row["LATITUDE"],"Longitude":row["LONGITUDE"],"Timing":row["TIMING"],"Distance":distance}
+            i+=1 
+        
+    if i==0:
+        stops["status"] = "No Stops Found"
+    else:
+        stops["status"] = "Stops Found"
+
+    return stops
+
+def routeData(routes):
+    #print(routes)
+    
+    stops={}
+    data = read_csv(url)
+    i=0
+    for index,row in data.iterrows():
+        #print(row['ROUTE_NO'])
+        if  ("All Routes" in routes) or (row['ROUTE_NO'] in routes):
             stops[i]={"Route_no":row["ROUTE_NO"],"Stop_name":row["STOP_NAME"],"Latitude":row["LATITUDE"],"Longitude":row["LONGITUDE"],"Timing":row["TIMING"]}
             i+=1 
         
@@ -73,6 +92,9 @@ class userLocation(BaseModel):
 class address(BaseModel):
     address:str
 
+
+class routes(BaseModel):
+    routes:list
 
 @app.get("/calculateDistance")
 async def haversine(calcualteDistance:userLocation,request:Request):
@@ -105,7 +127,20 @@ async def findCoorinates(findGeoCoordinates:address,request:Request):
     else:
         return {"status":"Not in scope"}
 
+@app.get("/routes")
+async def returnRoutes(routes:routes):
+    """
+    Used to get all the data
+    usecase: To retrieve the routeno,stopname,lat,lon,time
+    """
+    data = dict(routes)
+    return routeData(data["routes"])
 
-
-
-
+@app.get("/routeNames")
+async def returnUniqueRouteNames():
+    """
+    Used to get all the unique route names
+    usecase: To display route names in the checkbox
+    """
+    data = read_csv(url)
+    return {"routeNames":data["ROUTE_NO"].unique().tolist()}
